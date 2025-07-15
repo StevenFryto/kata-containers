@@ -27,6 +27,7 @@ impl FcInner {
         if !self.config.jailer_path.is_empty() {
             debug!(sl(), "Running jailed");
             self.jailed = true;
+            // TODO: need rootless?
             self.jailer_root = KATA_PATH.to_string();
             debug!(sl(), "jailer_root: {:?}", self.jailer_root);
             self.vm_path = [
@@ -40,6 +41,7 @@ impl FcInner {
             debug!(sl(), "Rundir: {:?}", self.run_dir);
             let _ = self.remount_jailer_with_exec().await;
         } else {
+            // TODO: need rootless?
             self.vm_path = [KATA_PATH.to_string(), id.to_string()].join("/");
             debug!(sl(), "VM Path: {:?}", self.vm_path);
             self.run_dir = [self.vm_path.clone(), "run".to_string()].join("/");

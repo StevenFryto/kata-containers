@@ -17,6 +17,7 @@ use safe_path::scoped_join;
 pub fn to_disk<T: serde::Serialize>(value: &T, sid: &str, jailer_path: &str) -> Result<()> {
     verify_id(sid).context("failed to verify sid")?;
     // FIXME: handle jailed case
+    // TODO: need rootless
     let mut path = match jailer_path {
         "" => scoped_join(KATA_PATH, sid)?,
         _ => scoped_join(jailer_path, "root")?,
@@ -24,6 +25,7 @@ pub fn to_disk<T: serde::Serialize>(value: &T, sid: &str, jailer_path: &str) -> 
     //let mut path = scoped_join(KATA_PATH, sid)?;
     if path.exists() {
         path.push(PERSIST_FILE);
+        // TODO: access in rootless mode
         let f = File::create(path)
             .context("failed to create the file")
             .context("failed to join the path")?;
@@ -39,6 +41,7 @@ where
     T: de::DeserializeOwned,
 {
     verify_id(sid).context("failed to verify sid")?;
+    // TODO: need rootless
     let mut path = scoped_join(KATA_PATH, sid)?;
     if path.exists() {
         path.push(PERSIST_FILE);
@@ -73,6 +76,7 @@ mod tests {
         assert!(to_disk(&data, ".#cdscd.", "").is_err());
 
         let sid = "aadede";
+        // TODO: need rootless
         let sandbox_dir = [KATA_PATH, sid].join("/");
         if DirBuilder::new()
             .recursive(true)

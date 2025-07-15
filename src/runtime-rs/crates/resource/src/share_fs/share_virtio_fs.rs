@@ -70,6 +70,7 @@ pub(crate) async fn prepare_virtiofs(
 
 pub(crate) async fn setup_inline_virtiofs(d: &RwLock<DeviceManager>, id: &str) -> Result<()> {
     // - source is the absolute path of PASSTHROUGH_FS_DIR on host, e.g.
+    // TODO: need rootless
     //   /run/kata-containers/shared/sandboxes/<sid>/passthrough
     // - mount point is the path relative to KATA_GUEST_SHARE_DIR in guest
     let mnt = format!("/{}", PASSTHROUGH_FS_DIR);

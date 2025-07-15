@@ -350,6 +350,7 @@ impl ShareFsVolume {
                     info!(sl!(), "copying directory {:?} to guest", &source_path);
 
                     // create target path in guest
+                    // TODO: need rootless
                     let dest_dir = [
                         DEFAULT_KATA_GUEST_SANDBOX_DIR,
                         PASSTHROUGH_FS_DIR,

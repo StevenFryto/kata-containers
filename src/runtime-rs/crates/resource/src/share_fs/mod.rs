@@ -35,6 +35,7 @@ const VIRTIO_FS: &str = "virtio-fs";
 const _VIRTIO_FS_NYDUS: &str = "virtio-fs-nydus";
 const INLINE_VIRTIO_FS: &str = "inline-virtio-fs";
 
+// TODO: need rootless
 const KATA_HOST_SHARED_DIR: &str = "/run/kata-containers/shared/sandboxes/";
 
 /// share fs (for example virtio-fs) mount path in the guest

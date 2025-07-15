@@ -45,6 +45,7 @@ pub fn get_child_threads(pid: u32) -> HashSet<u32> {
 
 // Return the path for a _hypothetical_ sandbox: the path does *not* exist
 // yet, and for this reason safe-path cannot be used.
+// TODO: Firecracker/Dragonball/CLH use the hybrid-vsock device model. unconsidered
 pub fn get_sandbox_path(sid: &str) -> String {
     [KATA_PATH, sid].join("/")
 }

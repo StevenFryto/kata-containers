@@ -90,6 +90,7 @@ func create(ctx context.Context, s *service, r *taskAPI.CreateTaskRequest) (*con
 		return nil, err
 	}
 
+	// TODO: do nothing
 	if err := copyLayersToMounts(&rootFs, ociSpec); err != nil {
 		return nil, err
 	}

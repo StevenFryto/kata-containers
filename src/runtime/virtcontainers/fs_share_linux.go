@@ -196,6 +196,7 @@ func (f *FilesystemShare) cleanupBindMounts(ctx context.Context) error {
 	return retErr
 }
 
+// TODO: create /run/kata-containers/shared/ dir
 func (f *FilesystemShare) Prepare(ctx context.Context) error {
 	var err error
 

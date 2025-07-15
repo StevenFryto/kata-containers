@@ -191,6 +191,7 @@ impl DragonballInner {
             .map_err(|e| anyhow!("Failed to create dir {} err : {:?}", self.jailer_root, e))?;
 
         // create run dir
+        // TODO: need rootless
         self.run_dir = [KATA_PATH, self.id.as_str()].join("/");
         create_dir_all(self.run_dir.as_str())
             .with_context(|| format!("failed to create dir {}", self.run_dir.as_str()))?;

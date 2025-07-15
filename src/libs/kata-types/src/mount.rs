@@ -31,6 +31,7 @@ pub const KATA_MOUNT_INFO_FILE_NAME: &str = "mountInfo.json";
 /// Specify `fsgid` for a volume or mount, `fsgid=1`.
 pub const KATA_MOUNT_OPTION_FS_GID: &str = "fsgid";
 
+// TODO: need rootless
 /// KATA_DIRECT_VOLUME_ROOT_PATH is the root path used for concatenating with the direct-volume mount info file path
 pub const KATA_DIRECT_VOLUME_ROOT_PATH: &str = "/run/kata-containers/shared/direct-volumes";
 

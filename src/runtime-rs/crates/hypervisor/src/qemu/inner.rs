@@ -6,6 +6,7 @@
 use super::cmdline_generator::{get_network_device, QemuCmdLine, QMP_SOCKET_FILE};
 use super::qmp::Qmp;
 use crate::device::topology::PCIePort;
+use crate::utils::get_jailer_root;
 use crate::{
     device::driver::ProtectionDeviceConfig, hypervisor_persist::HypervisorState,
     utils::enter_netns, HypervisorConfig, MemoryConfig, VcpuThreadIds, VsockDevice,
@@ -66,6 +67,7 @@ impl QemuInner {
         self.id = id.to_string();
         self.netns = netns;
 
+        // TODO: need rootless
         let vm_path = [KATA_PATH, self.id.as_str()].join("/");
         std::fs::create_dir_all(vm_path)?;
 
@@ -322,6 +324,7 @@ impl QemuInner {
 
     pub(crate) async fn cleanup(&self) -> Result<()> {
         info!(sl!(), "QemuInner::cleanup()");
+        // TODO: need rootless
         let vm_path = [KATA_PATH, self.id.as_str()].join("/");
         std::fs::remove_dir_all(vm_path)?;
         Ok(())
@@ -381,7 +384,12 @@ impl QemuInner {
     }
 
     pub(crate) async fn get_jailer_root(&self) -> Result<String> {
-        Ok("".into())
+        // TODO: rootless
+        let root_path = get_jailer_root(&self.id);
+
+        std::fs::create_dir_all(&root_path)?;
+
+        Ok(root_path)
     }
 
     pub(crate) async fn capabilities(&self) -> Result<Capabilities> {

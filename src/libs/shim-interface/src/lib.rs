@@ -72,6 +72,7 @@ fn get_uds_with_sid(short_id: &str, path: &str) -> Result<String> {
     }
 }
 
+// TODO: need to considered，不用改，引用它的是mgmt_socket_addr
 // return sandbox's storage path
 pub fn sb_storage_path() -> Result<&'static str> {
     //make sure the path existed

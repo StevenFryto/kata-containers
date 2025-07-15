@@ -126,6 +126,7 @@ impl ServiceManager {
             warn!(sl!(), "failed to clean up runtime state, {}", e);
         }
 
+        // TODO: need rootless?
         let temp_dir = [KATA_PATH, sid].join("/");
         if fs::metadata(temp_dir.as_str()).is_ok() {
             // try to remove dir and skip the result

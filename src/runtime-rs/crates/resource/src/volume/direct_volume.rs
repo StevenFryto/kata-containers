@@ -44,6 +44,7 @@ pub(crate) async fn handle_direct_volume(
     sid: &str,
 ) -> Result<Option<Arc<dyn Volume>>> {
     // In the direct volume scenario, we check if the source of a mount is in the
+    // TODO: need rootless?
     // /run/kata-containers/shared/direct-volumes/SID path by iterating over all the mounts.
     // If the source is not in the path with error kind *NotFound*, we ignore the error
     // and we treat it as block volume with oci Mount.type *bind*. Just fill in the block

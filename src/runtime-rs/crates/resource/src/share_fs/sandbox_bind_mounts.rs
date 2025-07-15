@@ -35,6 +35,7 @@ pub struct SandboxBindMounts {
 impl SandboxBindMounts {
     pub fn new(sid: String, sandbox_bindmounts: Vec<String>) -> Result<Self> {
         // /run/kata-containers/shared/sandboxes/<sid>/rw/passthrough/sandbox-mounts
+        // TODO: need rootless
         let bindmounts_path =
             do_get_host_path(SANDBOX_BIND_MOUNTS_DIR, sid.as_str(), "", true, false);
         let host_mounts_path = PathBuf::from(bindmounts_path);
@@ -87,6 +88,7 @@ impl SandboxBindMounts {
             }
 
             // mount_dest: /run/kata-containers/shared/sandboxes/<sid>/rw/passthrough/sandbox-mounts/dirX
+            // TODO:
             let mount_dest = self.host_mounts_path.clone().join(mnt_name.as_str());
             mkdir_with_permissions(self.host_mounts_path.clone().to_path_buf(), 0o750).context(
                 format!(
@@ -115,6 +117,7 @@ impl SandboxBindMounts {
             if bindmount_mode == SANDBOX_BIND_MOUNTS_RO {
                 info!(sl!(), "sandbox readonly bind mount.");
                 // dest_ro: /run/kata-containers/shared/sandboxes/<sid>/ro/passthrough/sandbox-mounts
+                // TODO:
                 let mount_dest_ro =
                     do_get_host_path(SANDBOX_BIND_MOUNTS_DIR, &self.sid, "", true, true);
                 let sandbox_bindmounts_ro = [mount_dest_ro, mnt_name.clone()].join("/");
@@ -140,6 +143,7 @@ impl SandboxBindMounts {
                 .map_err(|e| anyhow!("failed to convert to string{:?}", e))?;
 
             // /run/kata-containers/shared/sandboxes/<sid>/passthrough/rw/sandbox-mounts/dir
+            // TODO:
             let mnt_dest = self.host_mounts_path.join(mnt_name.as_str());
             mount::umount_timeout(mnt_dest, 0).context("umount bindmount failed")?;
         }

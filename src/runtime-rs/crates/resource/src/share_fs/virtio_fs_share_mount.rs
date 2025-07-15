@@ -14,6 +14,7 @@ use std::path::Path;
 
 const WATCHABLE_PATH_NAME: &str = "watchable";
 const WATCHABLE_BIND_DEV_TYPE: &str = "watchable-bind";
+// TODO: need rootless
 pub const EPHEMERAL_PATH: &str = "/run/kata-containers/sandbox/ephemeral";
 
 use super::{
@@ -75,6 +76,7 @@ impl ShareFsMount for VirtiofsShareMount {
             let host_rw_path = utils::get_host_rw_shared_path(&self.id);
 
             // "/run/kata-containers/shared/sandboxes/$sid/rw/passthrough/watchable"
+            // TODO: need rootless
             let watchable_host_path = Path::new(&host_rw_path)
                 .join(PASSTHROUGH_FS_DIR)
                 .join(WATCHABLE_PATH_NAME);
@@ -85,6 +87,7 @@ impl ShareFsMount for VirtiofsShareMount {
             ))?;
 
             // path: /run/kata-containers/shared/containers/passthrough/watchable/config-map-name
+            // TODO: need rootless
             let file_name = Path::new(&guest_path)
                 .file_name()
                 .context("get file name from guest path")?;

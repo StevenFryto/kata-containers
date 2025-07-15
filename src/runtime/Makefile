@@ -863,7 +863,7 @@ $(RUNTIME_OUTPUT): $(SOURCES) $(GENERATED_FILES) $(MAKEFILE_LIST) | show-summary
 	$(QUIET_BUILD)(cd $(RUNTIME_DIR) && go build -ldflags "$(KATA_LDFLAGS)" $(BUILDFLAGS) -o $@ .)
 
 $(SHIMV2_OUTPUT): $(SOURCES) $(GENERATED_FILES) $(MAKEFILE_LIST)
-	$(QUIET_BUILD)(cd $(SHIMV2_DIR)/ && go build -ldflags "$(KATA_LDFLAGS)" $(BUILDFLAGS) -o $@ .)
+	$(QUIET_BUILD)(cd $(SHIMV2_DIR)/ && go build -ldflags "$(KATA_LDFLAGS)" $(BUILDFLAGS) -gcflags=all="-N -l" -o $@ .)
 
 $(MONITOR_OUTPUT): $(SOURCES) $(GENERATED_FILES) $(MAKEFILE_LIST) .git-commit
 	$(QUIET_BUILD)(cd $(MONITOR_DIR)/ && go build \

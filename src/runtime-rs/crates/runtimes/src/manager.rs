@@ -17,7 +17,7 @@ use common::{
 use hypervisor::Param;
 use kata_sys_util::{mount::get_mount_path, spec::load_oci_spec};
 use kata_types::{
-    annotations::Annotation, config::default::DEFAULT_GUEST_DNS_FILE, config::TomlConfig,
+    annotations::Annotation, config::{default::DEFAULT_GUEST_DNS_FILE, rootless::{is_rootless, set_rootless}, TomlConfig},
 };
 #[cfg(feature = "linux")]
 use linux_container::LinuxContainer;
@@ -32,12 +32,7 @@ use resource::{
 use runtime_spec as spec;
 use shim_interface::shim_mgmt::ERR_NO_SHIM_SERVER;
 use std::{
-    collections::HashMap,
-    ops::Deref,
-    path::{Path, PathBuf},
-    str::from_utf8,
-    sync::Arc,
-    time::SystemTime,
+    collections::HashMap, ops::Deref, path::{Path, PathBuf}, process::Command, str::from_utf8, sync::Arc, time::SystemTime
 };
 use tokio::fs;
 use tokio::sync::{mpsc::Sender, Mutex, RwLock};
@@ -183,6 +178,19 @@ impl RuntimeHandlerManagerInner {
 
         update_component_log_level(&config);
 
+        let hypervisor_name = &config.runtime.hypervisor_name;
+        let hypervisor = config
+            .hypervisor
+            .get(hypervisor_name)
+            .ok_or_else(|| anyhow!("Hypervisor {} not found", hypervisor_name))?;
+        set_rootless(hypervisor.security_info.rootless);
+        if is_rootless() {
+            info!(sl!(), "runtime is running in rootless mode");
+            configure_non_root_hypervisor();
+        } else {
+            info!(sl!(), "runtime is running in rootful mode");
+        }
+
         let dan_path = dan_config_path(&config, &self.id);
         // set netns to None if we want no network for the VM
         if config.runtime.disable_new_netns || dan_path.exists() {
@@ -196,6 +204,7 @@ impl RuntimeHandlerManagerInner {
         // the sandbox creation can reach here only once and the sandbox is created
         // so we can safely create the shim management socket right now
         // the unwrap here is safe because the runtime handler is correctly created
+        // TODO: /run/kata/<runtime_name>/<sandbox_id>/shim-monitor.sock
         let shim_mgmt_svr = MgmtServer::new(
             &self.id,
             self.runtime_instance.as_ref().unwrap().sandbox.clone(),
@@ -215,6 +224,112 @@ impl RuntimeHandlerManagerInner {
     fn get_kata_tracer(&self) -> Arc<Mutex<KataTracer>> {
         self.kata_tracer.clone()
     }
+}
+
+/// CreateVmmUser: 创建一个临时用户
+// pub fn create_vmm_user() -> Result<String> {
+//     let useradd = first_valid_executable(&[
+//         "/usr/sbin/useradd",
+//         "/sbin/useradd",
+//         "/bin/useradd",
+//     ])?;
+//     let nologin = first_valid_executable(&[
+//         "/usr/sbin/nologin",
+//         "/sbin/nologin",
+//         "/bin/nologin",
+//     ])?;
+
+//     let mut last_err: Option<anyhow::Error> = None;
+//     let mut rng = thread_rng();
+//     for attempt in 1..=5 {
+//         let user_name = format!("kata-{}", rng.gen_range(0..100_000));
+//         let status = Command::new(&useradd)
+//             .args(&[
+//                 "-M",
+//                 "-s",
+//                 &nologin,
+//                 &user_name,
+//                 "-c",
+//                 "Kata Containers temporary hypervisor user",
+//             ])
+//             .status();
+//         match status {
+//             Ok(s) if s.success() => return Ok(user_name),
+//             Ok(s) => {
+//                 last_err = Some(anyhow!("useradd exit code {:?}", s.code()));
+//             }
+//             Err(e) => {
+//                 last_err = Some(e.into());
+//             }
+//         }
+//     }
+//     Err(last_err.unwrap_or_else(|| anyhow!("could not create VMM user")))
+// }
+
+// /// RemoveVmmUser: 删除临时用户
+// pub fn remove_vmm_user(user: &str) -> Result<()> {
+//     let userdel = first_valid_executable(&[
+//         "/usr/sbin/userdel",
+//         "/sbin/userdel",
+//         "/bin/userdel",
+//     ])
+//     .context("failed to find userdel executable")?;
+
+//     for attempt in 1..=5 {
+//         let status = Command::new(&userdel).args(&["-f", user]).status();
+//         if let Ok(s) = status {
+//             if s.success() {
+//                 return Ok(());
+//             }
+//             last_err = Some(anyhow!("userdel exit code {:?}", s.code()));
+//         } else if let Err(e) = status {
+//             last_err = Some(e.into());
+//         }
+//     }
+//     Err(last_err.unwrap_or_else(|| anyhow!("could not remove VMM user")))
+// }
+
+fn first_valid_executable(paths: &[&str]) -> Result<String> {
+    for &p in paths {
+        match std::fs::metadata(p) {
+            Ok(meta) if meta.is_file() && meta.permissions().mode() & 0o111 != 0 => {
+                return Ok(p.to_string());
+            }
+            Ok(_) => {
+                // File exists but is not executable, try next path
+                continue;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                continue; // File not found, try next path
+            }
+            Err(e) => {
+                return Err(anyhow!("Error checking file {}: {}", p, e));
+            }
+        }
+    }
+    Err(anyhow!("No valid executable found in provided paths"))
+}
+
+fn run_command_full(args: &[&str], include_stderr: bool) -> Result<String> {
+    let mut cmd = Command::new(args[0]);
+    if args.len() > 1{
+        cmd.args(&args[1..]);
+    }
+    let output = if include_stderr {
+        cmd.output().context("failed to run command")?
+    } else {
+        cmd.output().context("failed to run command")?
+    };
+    let mut buf = output.stdout;
+    if include_stderr {
+        buf.extend(&output.stderr);
+    }
+    let s = String::from_utf8_lossy(&buf).trim().to_string();
+    Ok(s)
+}
+
+fn run_command(args: &[&str]) -> Result<String> {
+    run_command_full(args, false)
 }
 
 pub struct RuntimeHandlerManager {
@@ -341,6 +456,7 @@ impl RuntimeHandlerManager {
                 // if we get empty netns from oci spec, we need to create netns for the VM
                 else {
                     let ns_name = generate_netns_name();
+                    // TODO: need rootless netns
                     let raw_netns = NetNs::new(ns_name)?;
                     let path = Some(PathBuf::from(raw_netns.path()).display().to_string());
                     netns = path;

@@ -25,6 +25,7 @@ import (
 	mutils "github.com/kata-containers/kata-containers/src/runtime/pkg/utils"
 	vc "github.com/kata-containers/kata-containers/src/runtime/virtcontainers"
 	vcAnnotations "github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/annotations"
+	"github.com/kata-containers/kata-containers/src/runtime/virtcontainers/pkg/rootless"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -332,6 +333,10 @@ func (s *service) mountPprofHandle(m *http.ServeMux, ociSpec *specs.Spec) {
 
 // GetSandboxesStoragePath returns the storage path where sandboxes info are stored
 func GetSandboxesStoragePath() string {
+	if rootless.IsRootless() {
+		rootlessDir := os.Getenv("XDG_RUNTIME_DIR")
+		return filepath.Join(rootlessDir, "/run/vc/sbc")
+	}
 	return "/run/vc/sbs"
 }
 

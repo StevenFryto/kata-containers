@@ -747,6 +747,7 @@ fn default_guest_swap_size_percent() -> u64 {
     100
 }
 
+// TODO: need rootless
 fn default_guest_swap_path() -> String {
     "/run/kata-containers/swap".to_string()
 }

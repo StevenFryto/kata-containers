@@ -206,6 +206,7 @@ mod tests {
         clh.id = String::from("123456");
         clh.netns = Some(String::from("/var/run/netns/testnet"));
         clh.vm_path = String::from("/opt/kata/bin/cloud-hypervisor");
+        // TODO: need rootless?
         clh.run_dir = String::from("/var/run/kata-containers/") + &clh.id;
 
         clh.guest_protection_to_use = GuestProtection::Tdx;

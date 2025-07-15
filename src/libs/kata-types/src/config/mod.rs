@@ -21,6 +21,8 @@ pub mod default;
 mod agent;
 mod drop_in;
 pub mod hypervisor;
+/// Rootless mode configuration and utilities.
+pub mod rootless;
 
 pub use self::agent::Agent;
 use self::default::DEFAULT_AGENT_DBG_CONSOLE_PORT;
@@ -35,6 +37,7 @@ pub use self::runtime::{Runtime, RuntimeVendor, RUNTIME_NAME_VIRTCONTAINER};
 pub use self::agent::AGENT_NAME_KATA;
 
 /// kata run dir
+/// // TODO: need rootless
 pub const KATA_PATH: &str = "/run/kata";
 
 // TODO: let agent use the constants here for consistency

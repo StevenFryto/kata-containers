@@ -353,6 +353,7 @@ func (q *qemu) getQemuMachine() (govmmQemu.Machine, error) {
 	return machine, nil
 }
 
+// TODO: qmp.sock
 func (q *qemu) createQmpSocket() ([]govmmQemu.QMPSocket, error) {
 	monitorSockPath, err := q.qmpSocketPath(q.id)
 	if err != nil {
@@ -1103,6 +1104,7 @@ func (q *qemu) setupEarlyQmpConnection() (net.Conn, error) {
 	// close the original one when we're done.
 	defer qmpListener.Close()
 
+	// TODO: rootless
 	if rootless.IsRootless() {
 		err = syscall.Chown(monitorSockPath, int(q.config.Uid), int(q.config.Gid))
 		if err != nil {
@@ -1184,6 +1186,7 @@ func (q *qemu) StartVM(ctx context.Context, timeout int) error {
 	}()
 
 	vmPath := filepath.Join(q.config.VMStorePath, q.id)
+	// TODO: /run/vc/<sid>/
 	err := utils.MkdirAllWithInheritedOwner(vmPath, DirMode)
 	if err != nil {
 		return err
