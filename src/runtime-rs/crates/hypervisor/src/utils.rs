@@ -7,15 +7,16 @@
 use std::{
     collections::HashSet,
     fs::{File, OpenOptions},
-    os::fd::{AsRawFd, RawFd},
+    os::{fd::{AsRawFd, RawFd}, unix::fs::MetadataExt}, process::Command,
 };
 
 use anyhow::{anyhow, Context, Result};
-use kata_types::config::KATA_PATH;
+use kata_types::{config::KATA_PATH, rootless::{get_rootless_dir, is_rootless}};
 use nix::{
     fcntl,
     sched::{setns, CloneFlags},
 };
+use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -46,6 +47,10 @@ pub fn get_child_threads(pid: u32) -> HashSet<u32> {
 // Return the path for a _hypothetical_ sandbox: the path does *not* exist
 // yet, and for this reason safe-path cannot be used.
 pub fn get_sandbox_path(sid: &str) -> String {
+    if is_rootless() {
+        let rootless_dir = get_rootless_dir();
+        return [&rootless_dir, KATA_PATH, sid].join("/");
+    }
     [KATA_PATH, sid].join("/")
 }
 
@@ -198,6 +203,50 @@ pub fn bytes_to_megs(bytes: u64) -> u32 {
 
 pub fn megs_to_bytes(bytes: u32) -> u64 {
     bytes as u64 * (1 << 20)
+}
+
+fn first_valid_executable(path: &[&str]) -> Result<String> {
+    for p in path {
+        if let Ok(metadata) = std::fs::metadata(p) {
+            if metadata.is_file() && metadata.mode() & 0o111 != 0 {
+                return Ok(p.to_string());
+            }
+        }
+    }
+    Err(anyhow!("No valid executable found in the provided paths."))
+}
+
+pub fn create_vmm_user() -> Result<String> {
+    let useradd_path = first_valid_executable(&["/usr/sbin/useradd", "/sbin/useradd", "/bin/useradd"])?;
+    let nologin_path = first_valid_executable(&["/usr/sbin/nologin", "/sbin/nologin", "/bin/nologin"])?;
+
+    let max_attempt = 5;
+    for _ in 0..max_attempt {
+        let user_name = format!("kata-{}", thread_rng().gen_range(0..100000));
+        let status = Command::new(&useradd_path)
+            .arg("-M")
+            .arg("-s")
+            .arg(&nologin_path)
+            .arg(&user_name)
+            .arg("-c")
+            .arg("\"Kata Containers temporary hypervisor user\"")
+            .status()?;
+        if status.success() {
+            return Ok(user_name);
+        }
+    }
+    Err(anyhow!("Failed to create a temporary hypervisor user after {} attempts.", max_attempt))
+}
+
+pub fn remove_vmm_user(user: &str) {
+    let userdel_path = first_valid_executable(&["/usr/sbin/userdel", "/sbin/userdel", "/bin/userdel"])
+        .unwrap_or_else(|_| "/usr/sbin/userdel".to_string());
+    for _ in 0..5 {
+        let _ = Command::new(&userdel_path)
+            .arg("-f")
+            .arg(user)
+            .output();
+    }
 }
 
 #[cfg(test)]

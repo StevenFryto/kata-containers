@@ -1221,6 +1221,18 @@ pub struct Hypervisor {
     /// Disable applying SELinux on the container process.
     #[serde(default = "yes")]
     pub disable_guest_selinux: bool,
+
+    /// Disable applying AppArmor on the container process.
+    #[serde(default)]
+    pub uid: u32,
+
+    /// Disable applying AppArmor on the container process.
+    #[serde(default)]
+    pub gid: u32,
+
+    /// Disable applying AppArmor on the container process.
+    #[serde(default)]
+    pub groups: Vec<u32>,
 }
 
 fn yes() -> bool {
