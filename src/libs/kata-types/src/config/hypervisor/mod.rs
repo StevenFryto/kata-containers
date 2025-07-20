@@ -747,6 +747,7 @@ fn default_guest_swap_size_percent() -> u64 {
     100
 }
 
+// TODO: need rootless?
 fn default_guest_swap_path() -> String {
     "/run/kata-containers/swap".to_string()
 }
@@ -1221,6 +1222,22 @@ pub struct Hypervisor {
     /// Disable applying SELinux on the container process.
     #[serde(default = "yes")]
     pub disable_guest_selinux: bool,
+
+    /// Disable applying AppArmor on the container process.
+    #[serde(default)]
+    pub uid: u32,
+
+    /// Disable applying AppArmor on the container process.
+    #[serde(default)]
+    pub gid: u32,
+
+    /// Disable applying AppArmor on the container process.
+    #[serde(default)]
+    pub groups: Vec<u32>,
+
+    /// The user maps to the uid
+    #[serde(default)]
+    pub user: String,
 }
 
 fn yes() -> bool {

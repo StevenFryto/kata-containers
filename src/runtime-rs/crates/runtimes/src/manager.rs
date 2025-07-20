@@ -14,15 +14,16 @@ use common::{
     RuntimeHandler, RuntimeInstance, Sandbox, SandboxNetworkEnv,
 };
 
-use hypervisor::Param;
+use hypervisor::{utils::{create_vmm_user, remove_vmm_user}, Param};
 use kata_sys_util::{mount::get_mount_path, spec::load_oci_spec};
 use kata_types::{
-    annotations::Annotation, config::default::DEFAULT_GUEST_DNS_FILE, config::TomlConfig,
+    annotations::Annotation, config::{default::DEFAULT_GUEST_DNS_FILE, Hypervisor, TomlConfig}, rootless::{is_rootless, set_rootless},
 };
 #[cfg(feature = "linux")]
 use linux_container::LinuxContainer;
 use logging::FILTER_RULE;
 use netns_rs::NetNs;
+use nix::unistd::User;
 use oci_spec::runtime as oci;
 use persist::sandbox_persist::Persist;
 use resource::{
@@ -32,12 +33,7 @@ use resource::{
 use runtime_spec as spec;
 use shim_interface::shim_mgmt::ERR_NO_SHIM_SERVER;
 use std::{
-    collections::HashMap,
-    ops::Deref,
-    path::{Path, PathBuf},
-    str::from_utf8,
-    sync::Arc,
-    time::SystemTime,
+    collections::HashMap, env, ops::Deref, os::unix::fs::{chown, MetadataExt}, path::{Path, PathBuf}, str::{from_utf8, FromStr}, sync::Arc, time::SystemTime
 };
 use tokio::fs;
 use tokio::sync::{mpsc::Sender, Mutex, RwLock};
@@ -160,6 +156,22 @@ impl RuntimeHandlerManagerInner {
 
         let mut config =
             load_config(&sandbox_config.annotations, options).context("load config")?;
+
+        let hypervisor_name = &config.runtime.hypervisor_name;
+        let hypervisor = config.hypervisor.get_mut(hypervisor_name).ok_or_else(|| {
+            anyhow!(
+                "hypervisor {} not found in config",
+                hypervisor_name
+            )
+        })?;
+        set_rootless(hypervisor.security_info.rootless);
+        if is_rootless() {
+            info!(sl!(), "runtime is running in rootless mode");
+            configure_non_root_hypervisor(hypervisor)
+                .context("configure non-root hypervisor")?;
+        } else {
+            info!(sl!(), "runtime is running in rootful mode");
+        }
 
         // Sandbox sizing information *may* be provided in two scenarios:
         //   1. The upper layer runtime (ie, containerd or crio) provide sandbox sizing information as an annotation
@@ -713,4 +725,51 @@ fn update_component_log_level(config: &TomlConfig) {
         );
         updated_inner
     });
+}
+
+fn configure_non_root_hypervisor(config: &mut Hypervisor) -> Result<()> {
+    let user_name = create_vmm_user()?;
+    info!(sl!(), "vmm user is {}", user_name);
+
+    // get user by name
+    let user = User::from_name(&user_name)
+        .map_err(|e| anyhow!("failed to get user by name {}: {}", user_name, e))?;
+
+    let user = user.unwrap();
+    config.uid = user.uid.as_raw();
+    config.user = user_name.clone();
+    config.gid = user.gid.as_raw();
+
+    let user_tmp_dir = PathBuf::from_str(&format!("/run/user/{}", config.uid));
+    let user_tmp_dir = user_tmp_dir.unwrap();
+
+    // std::fs::create_dir_all(&user_tmp_dir)
+    //     .map_err(|e| anyhow!("failed to create user tmp dir {}: {}", user_tmp_dir.display(), e))?;
+    // chown(user_tmp_dir.clone(), Some(config.uid), Some(config.gid))?;
+    match std::fs::create_dir_all(&user_tmp_dir) {
+        Ok(_) => {
+            match chown(&user_tmp_dir, Some(config.uid), Some(config.gid)) {
+                Ok(_) => info!(sl!(), "chown user tmp dir {} to uid {}, gid {}", user_tmp_dir.display(), config.uid, config.gid),
+                Err(e) => {
+                    remove_vmm_user(&user_name);
+                    return Err(anyhow!("failed to chown user tmp dir {}: {}", user_tmp_dir.display(), e));
+                }
+            }
+            info!(sl!(), "created user tmp dir {}", user_tmp_dir.display());
+        }
+        Err(e) => {
+            remove_vmm_user(&user_name);
+            return Err(anyhow!("failed to create user tmp dir {}: {}", user_tmp_dir.display(), e));
+        }
+    }
+
+    env::set_var("XDG_RUNTIME_DIR", user_tmp_dir);
+    let kvm_path = PathBuf::from("/dev/kvm");
+    let metadata = std::fs::metadata(&kvm_path)
+        .map_err(|e| anyhow!("failed to get metadata for {}: {}", kvm_path.display(), e))?;
+    let gid = metadata.gid();
+    config.groups.push(gid);
+    info!(sl!(), "user id {}, group id {}, groups {:?}", config.uid, config.gid, config.groups);
+
+    Ok(())
 }

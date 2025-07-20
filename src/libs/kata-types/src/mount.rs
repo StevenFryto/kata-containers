@@ -9,6 +9,9 @@ use std::convert::TryFrom;
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use crate::handler::HandlerManager;
+use crate::rootless::{
+    get_rootless_dir, is_rootless
+};
 
 /// Prefix to mark a volume as Kata special.
 pub const KATA_VOLUME_TYPE_PREFIX: &str = "kata:";
@@ -32,7 +35,7 @@ pub const KATA_MOUNT_INFO_FILE_NAME: &str = "mountInfo.json";
 pub const KATA_MOUNT_OPTION_FS_GID: &str = "fsgid";
 
 /// KATA_DIRECT_VOLUME_ROOT_PATH is the root path used for concatenating with the direct-volume mount info file path
-pub const KATA_DIRECT_VOLUME_ROOT_PATH: &str = "/run/kata-containers/shared/direct-volumes";
+pub const DEFAULT_KATA_DIRECT_VOLUME_ROOT_PATH: &str = "/run/kata-containers/shared/direct-volumes";
 
 /// Key to indentify directory creation in `Storage.driver_options`.
 pub const KATA_VOLUME_OVERLAYFS_CREATE_DIR: &str =
@@ -68,6 +71,18 @@ pub const KATA_VIRTUAL_VOLUME_LAYER_NYDUS_FS: &str = "layer_nydus_fs";
 pub const KATA_VIRTUAL_VOLUME_IMAGE_GUEST_PULL: &str = "image_guest_pull";
 /// In CoCo scenario, we support force_guest_pull to enforce container image guest pull without remote snapshotter.
 pub const KATA_IMAGE_FORCE_GUEST_PULL: &str = "force_guest_pull";
+
+/// KATA_VIRTUAL_VOLUME_IGNORE is used to ignore the volume.
+pub fn kata_direct_volume_root_path() -> String {
+    // Use the default path if not set.
+    let path;
+    if is_rootless() {
+        path = [get_rootless_dir(), DEFAULT_KATA_DIRECT_VOLUME_ROOT_PATH.to_string()].join("/");
+    } else {
+        path = DEFAULT_KATA_DIRECT_VOLUME_ROOT_PATH.to_string();
+    }
+    path
+}
 
 /// Manager to manage registered storage device handlers.
 pub type StorageHandlerManager<H> = HandlerManager<H>;
@@ -476,7 +491,7 @@ pub fn join_path(prefix: &str, volume_path: &str) -> Result<PathBuf> {
 
 /// get DirectVolume mountInfo from mountinfo.json.
 pub fn get_volume_mount_info(volume_path: &str) -> Result<DirectVolumeMountInfo> {
-    let volume_path = join_path(KATA_DIRECT_VOLUME_ROOT_PATH, volume_path)?;
+    let volume_path = join_path(&kata_direct_volume_root_path(), volume_path)?;
     let mount_info_file_path = volume_path.join(KATA_MOUNT_INFO_FILE_NAME);
     let mount_info_file = fs::read_to_string(mount_info_file_path)?;
     let mount_info: DirectVolumeMountInfo = serde_json::from_str(&mount_info_file)?;

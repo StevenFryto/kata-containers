@@ -20,7 +20,7 @@ use qapi_qmp::{self, PciDeviceInfo};
 use qapi_spec::Dictionary;
 
 /// default qmp connection read timeout
-const DEFAULT_QMP_READ_TIMEOUT: u64 = 250;
+const DEFAULT_QMP_READ_TIMEOUT: u64 = 2500;
 
 pub struct Qmp {
     qmp: qapi::Qmp<qapi::Stream<BufReader<UnixStream>, UnixStream>>,

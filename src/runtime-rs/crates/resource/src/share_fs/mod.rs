@@ -17,7 +17,7 @@ pub use utils::{
 };
 mod virtio_fs_share_mount;
 use virtio_fs_share_mount::VirtiofsShareMount;
-pub use virtio_fs_share_mount::EPHEMERAL_PATH;
+pub use virtio_fs_share_mount::ephemeral_path;
 pub mod sandbox_bind_mounts;
 
 use std::{collections::HashMap, fmt::Debug, path::PathBuf, sync::Arc};
@@ -25,7 +25,7 @@ use std::{collections::HashMap, fmt::Debug, path::PathBuf, sync::Arc};
 use agent::Storage;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use kata_types::config::hypervisor::SharedFsInfo;
+use kata_types::{config::hypervisor::SharedFsInfo, rootless::{get_rootless_dir, is_rootless}};
 use oci_spec::runtime as oci;
 use tokio::sync::RwLock;
 
@@ -35,15 +35,42 @@ const VIRTIO_FS: &str = "virtio-fs";
 const _VIRTIO_FS_NYDUS: &str = "virtio-fs-nydus";
 const INLINE_VIRTIO_FS: &str = "inline-virtio-fs";
 
-const KATA_HOST_SHARED_DIR: &str = "/run/kata-containers/shared/sandboxes/";
+const DEFAULT_KATA_HOST_SHARED_DIR: &str = "/run/kata-containers/shared/sandboxes/";
 
 /// share fs (for example virtio-fs) mount path in the guest
-const KATA_GUEST_SHARE_DIR: &str = "/run/kata-containers/shared/containers/";
+const DEFAULT_KATA_GUEST_SHARE_DIR: &str = "/run/kata-containers/shared/containers/";
 
 pub(crate) const DEFAULT_KATA_GUEST_SANDBOX_DIR: &str = "/run/kata-containers/sandbox/";
 
 pub const PASSTHROUGH_FS_DIR: &str = "passthrough";
 const RAFS_DIR: &str = "rafs";
+
+pub fn kata_host_shared_dir() -> String {
+    if is_rootless() {
+        let rootless_dir = get_rootless_dir();
+        format!("{}/{}", rootless_dir, DEFAULT_KATA_HOST_SHARED_DIR)
+    } else {
+        DEFAULT_KATA_HOST_SHARED_DIR.to_string()
+    }
+}
+
+pub fn kata_guest_share_dir() -> String {
+    if is_rootless() {
+        let rootless_dir = get_rootless_dir();
+        format!("{}/{}", rootless_dir, DEFAULT_KATA_GUEST_SHARE_DIR)
+    } else {
+        DEFAULT_KATA_GUEST_SHARE_DIR.to_string()
+    }
+}
+
+pub fn kata_guest_sandbox_dir() -> String {
+    if is_rootless() {
+        let rootless_dir = get_rootless_dir();
+        format!("{}/{}", rootless_dir, DEFAULT_KATA_GUEST_SANDBOX_DIR)
+    } else {
+        DEFAULT_KATA_GUEST_SANDBOX_DIR.to_string()
+    }
+}
 
 #[async_trait]
 pub trait ShareFs: Send + Sync {

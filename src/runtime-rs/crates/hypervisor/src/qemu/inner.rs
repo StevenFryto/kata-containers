@@ -11,11 +11,12 @@ use crate::{
     MemoryConfig, VcpuThreadIds, VsockDevice, HYPERVISOR_QEMU,
 };
 
-use crate::utils::{bytes_to_megs, enter_netns, megs_to_bytes};
+use crate::utils::{bytes_to_megs, enter_netns, get_jailer_root, megs_to_bytes, remove_vmm_user};
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use kata_sys_util::netns::NetnsGuard;
+use kata_types::rootless::{get_rootless_dir, is_rootless};
 use kata_types::{
     capabilities::{Capabilities, CapabilityBits},
     config::KATA_PATH,
@@ -68,7 +69,15 @@ impl QemuInner {
         self.id = id.to_string();
         self.netns = netns;
 
-        let vm_path = [KATA_PATH, self.id.as_str()].join("/");
+        let vm_path;
+        if is_rootless() {
+            let rootless_path = std::env::var("XDG_RUNTIME_DIR")
+                .unwrap_or_else(|_| "/run/user/0".to_string());
+            vm_path = [rootless_path, KATA_PATH.to_string(), self.id.to_string()].join("/");
+            info!(sl!(), "Rootless VM path: {}", vm_path);
+        } else {
+            vm_path = [KATA_PATH, self.id.as_str()].join("/");
+        }
         std::fs::create_dir_all(vm_path)?;
 
         Ok(())
@@ -325,7 +334,14 @@ impl QemuInner {
 
     pub(crate) async fn cleanup(&self) -> Result<()> {
         info!(sl!(), "QemuInner::cleanup()");
-        let vm_path = [KATA_PATH, self.id.as_str()].join("/");
+        let vm_path;
+        if is_rootless() {
+            let rootless_path = get_rootless_dir();
+            vm_path = [&rootless_path, KATA_PATH, self.id.as_str()].join("/");
+            remove_vmm_user(&self.config.user);
+        } else {
+            vm_path = [KATA_PATH, self.id.as_str()].join("/");
+        }
         std::fs::remove_dir_all(vm_path)?;
         Ok(())
     }
@@ -384,7 +400,14 @@ impl QemuInner {
     }
 
     pub(crate) async fn get_jailer_root(&self) -> Result<String> {
-        Ok("".into())
+        // Ok("".into())
+        let root_path = get_jailer_root(&self.id);
+
+        std::fs::create_dir_all(&root_path)
+            .context(format!("failed to create jailer root path: {}", root_path))?;
+        info!(sl!(), "jailer root path: {}", root_path);
+
+        Ok(root_path)
     }
 
     pub(crate) async fn capabilities(&self) -> Result<Capabilities> {

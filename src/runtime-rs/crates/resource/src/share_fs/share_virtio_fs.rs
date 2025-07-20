@@ -27,10 +27,11 @@ pub(crate) const MOUNT_GUEST_TAG: &str = "kataShared";
 pub(crate) const FS_TYPE_VIRTIO_FS: &str = "virtiofs";
 pub(crate) const KATA_VIRTIO_FS_DEV_TYPE: &str = "virtio-fs";
 
-const VIRTIO_FS_SOCKET: &str = "virtiofsd.sock";
+const VIRTIO_FS_SOCKET: &str = "vd.sock";
 
 pub(crate) fn generate_sock_path(root: &str) -> String {
     let socket_path = Path::new(root).join(VIRTIO_FS_SOCKET);
+    info!(sl!(), "vhost-socket path = {}", socket_path.display());
     socket_path.to_str().unwrap().to_string()
 }
 

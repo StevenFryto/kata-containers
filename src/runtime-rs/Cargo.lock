@@ -1788,6 +1788,7 @@ dependencies = [
  "shim-interface",
  "slog",
  "slog-scope",
+ "tempfile",
  "test-utils",
  "tests_utils",
  "thiserror 1.0.69",

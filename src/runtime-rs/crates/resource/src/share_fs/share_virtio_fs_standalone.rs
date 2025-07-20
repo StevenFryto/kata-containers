@@ -26,10 +26,9 @@ use super::{
     virtio_fs_share_mount::VirtiofsShareMount, MountedInfo, ShareFs, ShareFsMount,
 };
 use crate::share_fs::{
-    share_virtio_fs::{
+    kata_guest_share_dir, share_virtio_fs::{
         prepare_virtiofs, FS_TYPE_VIRTIO_FS, KATA_VIRTIO_FS_DEV_TYPE, MOUNT_GUEST_TAG,
-    },
-    KATA_GUEST_SHARE_DIR, VIRTIO_FS,
+    }, VIRTIO_FS
 };
 
 #[derive(Debug, Clone)]
@@ -122,6 +121,7 @@ impl ShareVirtioFsStandalone {
 
         let (tx, mut rx): (Sender<Result<()>>, Receiver<Result<()>>) = channel(100);
         tokio::spawn(run_virtiofsd(child, tx));
+        // TODO: need rootless: chown_to_parent
 
         // TODO: support timeout
         match rx.recv().await.unwrap() {
@@ -213,7 +213,7 @@ impl ShareFs for ShareVirtioFsStandalone {
             fs_type: String::from(FS_TYPE_VIRTIO_FS),
             fs_group: None,
             options: vec![String::from("nodev")],
-            mount_point: String::from(KATA_GUEST_SHARE_DIR),
+            mount_point: String::from(&kata_guest_share_dir()),
         };
 
         storages.push(shared_volume);
