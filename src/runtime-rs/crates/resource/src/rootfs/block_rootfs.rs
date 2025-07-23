@@ -16,13 +16,12 @@ use hypervisor::{
     },
     BlockConfig,
 };
-use kata_types::config::hypervisor::{
+use kata_types::{config::hypervisor::{
     VIRTIO_BLK_CCW, VIRTIO_BLK_MMIO, VIRTIO_BLK_PCI, VIRTIO_PMEM, VIRTIO_SCSI,
-};
+}, rootless::create_dir_all_with_inherit_owner};
 use kata_types::mount::Mount;
 use nix::sys::stat::{self, SFlag};
 use oci_spec::runtime as oci;
-use std::fs;
 use tokio::sync::RwLock;
 
 const BLOCKFILE_ROOTFS_FLAG: &str = "loop";
@@ -46,7 +45,8 @@ impl BlockRootfs {
         let host_path = do_get_host_path(ROOTFS, sid, cid, false, false);
         // Create rootfs dir on host to make sure mount point in guest exists, as readonly dir is
         // shared to guest via virtiofs, and guest is unable to create rootfs dir.
-        fs::create_dir_all(&host_path)
+        // TODO: need rootless?
+        create_dir_all_with_inherit_owner(&host_path, 0o750)
             .map_err(|e| anyhow!("failed to create rootfs dir {}: {:?}", host_path, e))?;
 
         let block_driver = get_block_driver(d).await;

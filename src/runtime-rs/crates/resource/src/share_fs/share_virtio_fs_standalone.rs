@@ -18,8 +18,8 @@ use tokio::{
 };
 
 use agent::Storage;
-use hypervisor::{device::device_manager::DeviceManager, Hypervisor};
-use kata_types::config::hypervisor::SharedFsInfo;
+use hypervisor::{device::device_manager::DeviceManager, firecracker::sl, Hypervisor};
+use kata_types::{config::hypervisor::SharedFsInfo, rootless::chown_to_parent};
 
 use super::{
     share_virtio_fs::generate_sock_path, utils::ensure_dir_exist, utils::get_host_ro_shared_path,
@@ -111,8 +111,19 @@ impl ShareVirtioFsStandalone {
 
         let mut cmd = Command::new(&self.config.virtio_fs_daemon);
         let child_cmd = cmd.args(&args).stderr(Stdio::piped());
+        info!(sl(), "virtiofsd.sock: {:?}", child_cmd);
         let child = child_cmd.spawn().context("spawn virtiofsd")?;
 
+        // TODO: need rootless: chown_to_parent
+        for _ in 0..10 {
+            if std::path::Path::new(&sock_path).exists() {
+                info!(sl!(), "virtiofsd socket path exists: {}", sock_path);
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        chown_to_parent(&sock_path)
+            .context(format!("chown virtiofsd socket path {}", sock_path))?;
         // update virtiofsd pid{
         {
             let mut inner = self.inner.write().await;
@@ -121,7 +132,6 @@ impl ShareVirtioFsStandalone {
 
         let (tx, mut rx): (Sender<Result<()>>, Receiver<Result<()>>) = channel(100);
         tokio::spawn(run_virtiofsd(child, tx));
-        // TODO: need rootless: chown_to_parent
 
         // TODO: support timeout
         match rx.recv().await.unwrap() {

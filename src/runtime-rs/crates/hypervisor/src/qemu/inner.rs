@@ -16,11 +16,12 @@ use crate::utils::{bytes_to_megs, enter_netns, get_jailer_root, megs_to_bytes, r
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use kata_sys_util::netns::NetnsGuard;
-use kata_types::rootless::{get_rootless_dir, is_rootless};
+use kata_types::rootless::{create_dir_all_with_inherit_owner, get_rootless_dir, is_rootless};
 use kata_types::{
     capabilities::{Capabilities, CapabilityBits},
     config::KATA_PATH,
 };
+use nix::unistd::{setgid, setgroups, setuid, Gid, Uid};
 use persist::sandbox_persist::Persist;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -78,7 +79,8 @@ impl QemuInner {
         } else {
             vm_path = [KATA_PATH, self.id.as_str()].join("/");
         }
-        std::fs::create_dir_all(vm_path)?;
+        // TODO: need rootless
+        create_dir_all_with_inherit_owner(vm_path, 0o750)?;
 
         Ok(())
     }
@@ -201,13 +203,33 @@ impl QemuInner {
         let mut command = Command::new(&self.config.path);
         command.args(cmdline.build().await?);
 
+        // command.uid(self.config.uid);
+        // command.gid(0);
+
         info!(sl!(), "qemu cmd: {:?}", command);
 
+        let uid = Uid::from_raw(self.config.uid);
+        let gid = Gid::from_raw(self.config.gid);
+
+        let groups_vec = self.config.groups.clone();
+        info!(sl!(), "qemu groups: {:?}", groups_vec);
+        let g = groups_vec.into_iter().map(|gid| Gid::from_raw(gid)).collect::<Vec<_>>();
         // we need move the qemu process into Network Namespace.
         unsafe {
+            let netns = netns.clone();
             let _pre_exec = command.pre_exec(move || {
                 let _ = enter_netns(&netns);
-
+                // 调用setgroups
+                let res = setgroups(&g);
+                if res.is_ok() {
+                    info!(sl!(), "setgroups success");
+                } else {
+                    error!(sl!(), "setgroups failed: {:?}", res);
+                }
+                let _ = setgid(gid)
+                    .context("setgid failed");
+                let _ = setuid(uid)
+                    .context("setuid failed");
                 Ok(())
             });
         }
@@ -403,7 +425,8 @@ impl QemuInner {
         // Ok("".into())
         let root_path = get_jailer_root(&self.id);
 
-        std::fs::create_dir_all(&root_path)
+        // TODO: need: rootless
+        create_dir_all_with_inherit_owner(&root_path, 0o750)
             .context(format!("failed to create jailer root path: {}", root_path))?;
         info!(sl!(), "jailer root path: {}", root_path);
 

@@ -376,6 +376,7 @@ impl SwapResource {
     ) -> Result<Self> {
         check_mkswap().await.context("check_mkswap")?;
 
+        // TODO: need rootless?
         fs::create_dir_all(&runtime_path)
             .await
             .context(format!("fs::create_dir_all {:?}", &runtime_path))?;

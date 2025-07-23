@@ -76,6 +76,7 @@ impl NydusRootfs {
                     .join(PASSTHROUGH_FS_DIR)
                     .join(cid);
                 let rootfs_dir = container_share_dir.join(ROOTFS);
+                // TODO: need rootless
                 fs::create_dir_all(rootfs_dir).context("failed to create directory")?;
                 // mount point inside the guest
                 let rootfs_guest_path = do_get_guest_path(ROOTFS, cid, false, false);
@@ -203,6 +204,7 @@ async fn get_nydus_prefetch_files(nydus_prefetch_path: String) -> Option<String>
 mod tests {
     use super::*;
     use std::{fs::File, path::PathBuf};
+    use kata_types::rootless::create_dir_all_with_inherit_owner;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -210,7 +212,8 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let prefetch_list_path01 = temp_dir.path().join("nydus_prefetch_files");
         // /tmp_dir/nydus_prefetch_files/
-        std::fs::create_dir_all(prefetch_list_path01.clone()).unwrap();
+        // TODO: need rootless?
+        create_dir_all_with_inherit_owner(prefetch_list_path01.clone(), 0o750).unwrap();
         // /tmp_dir/nydus_prefetch_files/prefetch_file.list
         let prefetch_list_path02 = prefetch_list_path01
             .as_path()

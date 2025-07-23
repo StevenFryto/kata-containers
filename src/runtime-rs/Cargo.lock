@@ -2008,6 +2008,7 @@ dependencies = [
  "glob",
  "hex",
  "lazy_static",
+ "nix 0.24.3",
  "num_cpus",
  "oci-spec",
  "regex",

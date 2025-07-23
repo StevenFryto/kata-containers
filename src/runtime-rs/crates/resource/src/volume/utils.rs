@@ -18,6 +18,7 @@ use kata_sys_util::{
     eother,
     mount::{get_mount_options, get_mount_path},
 };
+use kata_types::rootless::create_dir_all_with_inherit_owner;
 use oci_spec::runtime as oci;
 
 use hypervisor::device::DeviceType;
@@ -58,7 +59,8 @@ pub(crate) async fn generate_shared_path(
     if get_mount_path(&Some(dest)).starts_with("/dev") {
         fs::File::create(&host_path).context(format!("failed to create file {:?}", &host_path))?;
     } else {
-        std::fs::create_dir_all(&host_path)
+        // TODO: need rootless?
+        create_dir_all_with_inherit_owner(&host_path, 0o750)
             .map_err(|e| anyhow!("failed to create dir {}: {:?}", host_path, e))?;
     }
 

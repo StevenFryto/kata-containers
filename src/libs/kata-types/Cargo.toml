@@ -30,6 +30,7 @@ sysinfo = "0.34.2"
 sha2 = "0.10.8"
 flate2 = { version = "1.0", features = ["zlib"] }
 hex = "0.4"
+nix = "0.24.2"
 
 oci-spec = { version = "0.6.8", features = ["runtime"] }
 safe-path = { path = "../safe-path" }
@@ -37,7 +38,6 @@ safe-path = { path = "../safe-path" }
 [dev-dependencies]
 tempfile = "3.19.1"
 test-utils = { path = "../test-utils" }
-nix = "0.24.2"
 
 [features]
 default = []

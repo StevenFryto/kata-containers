@@ -48,7 +48,7 @@ const RAFS_DIR: &str = "rafs";
 pub fn kata_host_shared_dir() -> String {
     if is_rootless() {
         let rootless_dir = get_rootless_dir();
-        format!("{}/{}", rootless_dir, DEFAULT_KATA_HOST_SHARED_DIR)
+        format!("{}{}", rootless_dir, DEFAULT_KATA_HOST_SHARED_DIR)
     } else {
         DEFAULT_KATA_HOST_SHARED_DIR.to_string()
     }
@@ -57,7 +57,7 @@ pub fn kata_host_shared_dir() -> String {
 pub fn kata_guest_share_dir() -> String {
     if is_rootless() {
         let rootless_dir = get_rootless_dir();
-        format!("{}/{}", rootless_dir, DEFAULT_KATA_GUEST_SHARE_DIR)
+        format!("{}{}", rootless_dir, DEFAULT_KATA_GUEST_SHARE_DIR)
     } else {
         DEFAULT_KATA_GUEST_SHARE_DIR.to_string()
     }
@@ -66,7 +66,7 @@ pub fn kata_guest_share_dir() -> String {
 pub fn kata_guest_sandbox_dir() -> String {
     if is_rootless() {
         let rootless_dir = get_rootless_dir();
-        format!("{}/{}", rootless_dir, DEFAULT_KATA_GUEST_SANDBOX_DIR)
+        format!("{}{}", rootless_dir, DEFAULT_KATA_GUEST_SANDBOX_DIR)
     } else {
         DEFAULT_KATA_GUEST_SANDBOX_DIR.to_string()
     }

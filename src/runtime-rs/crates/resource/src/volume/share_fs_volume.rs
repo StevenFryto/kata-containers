@@ -819,6 +819,7 @@ mod test {
 
         let temp_dir = tempfile::tempdir().unwrap();
         let cm_path = temp_dir.path().join(configmap);
+        // need rootless?
         std::fs::create_dir_all(&cm_path).unwrap();
         let secret_path = temp_dir.path().join(secret);
         std::fs::create_dir_all(&secret_path).unwrap();

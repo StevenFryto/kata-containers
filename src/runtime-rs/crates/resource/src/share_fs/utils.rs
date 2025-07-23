@@ -11,13 +11,15 @@ use std::{
 
 use anyhow::Result;
 use kata_sys_util::mount;
+use kata_types::rootless::create_dir_all_with_inherit_owner;
 use nix::mount::MsFlags;
 
 use super::*;
 
+// TODO: need rootless
 pub(crate) fn mkdir_with_permissions(path_target: PathBuf, mode: u32) -> Result<()> {
     let new_path = &path_target;
-    std::fs::create_dir_all(new_path)
+    create_dir_all_with_inherit_owner(new_path, mode)
         .context(format!("unable to create new path: {:?}", new_path))?;
 
     // mode format: 0o750, ...
@@ -26,9 +28,10 @@ pub(crate) fn mkdir_with_permissions(path_target: PathBuf, mode: u32) -> Result<
     Ok(())
 }
 
+// TODO: need rootless
 pub(crate) fn ensure_dir_exist(path: &Path) -> Result<()> {
     if !path.exists() {
-        std::fs::create_dir_all(path).context(format!("failed to create directory {:?}", path))?;
+        create_dir_all_with_inherit_owner(path, 0o750).context(format!("failed to create directory {:?}", path))?;
     }
     Ok(())
 }

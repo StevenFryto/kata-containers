@@ -231,6 +231,7 @@ mod tests {
         for format_size in format_sizes {
             let dir = tempfile::tempdir().unwrap();
             let dst = dir.path().join(format!("hugepages-{}", format_size));
+            // TODO: need rootless?
             fs::create_dir_all(&dst).unwrap();
             mount(
                 Some(NODEV),
